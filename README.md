@@ -23,62 +23,75 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import mean_absolute_error, mean_squared_error
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 import pandas as pd
+import warnings
+warnings.filterwarnings('ignore')
 
-# Load the dataset
-file_path = "gld_price_data.csv"  # Update with your actual file path
-data = pd.read_csv(file_path, parse_dates=["Date"], index_col="Date")
+file_path = "results.csv"
+data = pd.read_csv(file_path, parse_dates=["date"])
 
-# Use only the GLD (Gold price) column
-data['GLD'] = pd.to_numeric(data['GLD'], errors='coerce')
-data = data.dropna(subset=['GLD'])
+data['home_score'] = pd.to_numeric(data['home_score'], errors='coerce')
+data = data.dropna(subset=['home_score'])
 
-# Resample the data to monthly frequency (mean of each month)
-monthly_data = data['GLD'].resample('MS').mean()
+data.set_index('date', inplace=True)
 
-# Split the data into train and test sets (90% train, 10% test)
-train_data = monthly_data[:int(0.9 * len(monthly_data))]
-test_data = monthly_data[int(0.9 * len(monthly_data)):]
+monthly_data = data['home_score'].resample('MS').mean()
+monthly_data = monthly_data.dropna()
 
-# Holt-Winters model with additive trend and seasonality
+split_index = int(0.9 * len(monthly_data))
+train_data = monthly_data[:split_index]
+test_data = monthly_data[split_index:]
+
+if len(train_data) >= 24:
+    seasonal_periods = 12
+    seasonal_type = 'add'
+    print("Using seasonal model (12-month period).")
+else:
+    seasonal_periods = None
+    seasonal_type = None
+    print("Using non-seasonal model (data too short for seasonality).")
+
 fitted_model = ExponentialSmoothing(
     train_data,
     trend='add',
-    seasonal='add',
-    seasonal_periods=12  # yearly seasonality for monthly data
+    seasonal=seasonal_type,
+    seasonal_periods=seasonal_periods
 ).fit()
 
-# Forecast on the test set
 test_predictions = fitted_model.forecast(len(test_data))
 
-# Plot the results
 plt.figure(figsize=(12, 8))
-train_data.plot(legend=True, label='Train')
-test_data.plot(legend=True, label='Test')
-test_predictions.plot(legend=True, label='Predicted')
-plt.title('Train, Test, and Predicted using Holt-Winters (Additive Trend/Seasonality)')
+train_data.plot(label='Train')
+test_data.plot(label='Test')
+test_predictions.plot(label='Predicted', color='red', linestyle='dashed')
+plt.title('Train, Test, and Predicted using Holt-Winters')
+plt.xlabel('Date')
+plt.ylabel('Average Home Score')
+plt.legend()
+plt.grid(True)
 plt.show()
 
-# Evaluate model performance
 mae = mean_absolute_error(test_data, test_predictions)
 mse = mean_squared_error(test_data, test_predictions)
 print(f"Mean Absolute Error = {mae:.4f}")
 print(f"Mean Squared Error = {mse:.4f}")
 
-# Fit the model to the entire dataset and forecast the future
 final_model = ExponentialSmoothing(
     monthly_data,
     trend='add',
-    seasonal='add',
-    seasonal_periods=12
+    seasonal=seasonal_type,
+    seasonal_periods=seasonal_periods
 ).fit()
 
-forecast_predictions = final_model.forecast(steps=12)  # Forecast 12 future months
+forecast_predictions = final_model.forecast(steps=12)
 
-# Plot the original and forecasted data
 plt.figure(figsize=(12, 8))
-monthly_data.plot(legend=True, label='Original Data')
-forecast_predictions.plot(legend=True, label='Forecasted Data', color='red')
-plt.title('Original and Forecasted Gold Prices (Holt-Winters Additive)')
+monthly_data.plot(label='Original Data')
+forecast_predictions.plot(label='Forecasted Data', color='purple', linestyle='dashed')
+plt.title('Original and Forecasted Home Scores')
+plt.xlabel('Date')
+plt.ylabel('Average Home Score')
+plt.legend()
+plt.grid(True)
 plt.show()
 
 ```
@@ -87,11 +100,11 @@ plt.show()
 
 ## TEST_PREDICTION
 
-<img width="992" height="705" alt="495479448-8a8b6356-7a7b-4ea9-8f7e-f74a0d42a9e5" src="https://github.com/user-attachments/assets/d41beba4-da61-4454-a576-2893ee661407" />
+<img width="1265" height="761" alt="image" src="https://github.com/user-attachments/assets/c5e4744a-2999-4058-9836-15b934f6f8bf" />
 
 ### FINAL_PREDICTION
 
-<img width="986" height="701" alt="495479489-2b9a7afd-ccc2-4787-b163-4d1943ea7867" src="https://github.com/user-attachments/assets/5daad06e-ad8d-4cd1-918c-a45f9ad381c7" />
+<img width="1285" height="767" alt="image" src="https://github.com/user-attachments/assets/c63d387a-3674-4b95-bed0-ce769d532c8f" />
 
 
 # RESULT:
